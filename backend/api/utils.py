@@ -12,16 +12,16 @@ font = os.path.join(
 
 def generate_pdf(queryset):
     pdf_file = FPDF()
-    pdf_file.addPage()
-    pdf_file.addFont("Calibri", "", font, uni=True)
-    pdf_file.setFont("Calibri", 14)
+    pdf_file.add_page()
+    pdf_file.add_font("Calibri", "", font, uni=True)
+    pdf_file.set_font("Calibri", 14)
     line = 1
     for ingredients in queryset:
-        pdf_file.cell(12, 12, txt=ingredients, ln=line)
+        pdf_file.cell(12, 12, txt=ingredients, align='L', ln=line)
         line += 1
     pdf_file.output('reports.pdf', 'F')
     return FileResponse(
         open('reports.pdf', 'rb'),
         as_attachment=True,
-        content='application/pdf'
+        content_type='application/pdf'
     )
