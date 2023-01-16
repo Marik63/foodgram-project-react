@@ -1,6 +1,6 @@
 ﻿from django.db.transaction import atomic
 from django.shortcuts import get_object_or_404
-from djoser.serializers import UserSerializer
+from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_base64.fields import Base64ImageField
 from rest_framework.serializers import (IntegerField, ModelSerializer,
                                         PrimaryKeyRelatedField,
@@ -13,7 +13,7 @@ from recipes.models import (Favorite, Ingredient, IngredientRecipe,
 from users.models import Follow, User
 
 
-class UsersSerializer(UserSerializer):
+class CustomUserSerializer(UserSerializer):
     """
     Класс сериализатора для управления пользователями.
     """
@@ -30,7 +30,7 @@ class UsersSerializer(UserSerializer):
             'is_subscribed'
         )
 
-    def get_is_subscribed(self, obj: User):
+    def get_is_subscribed(self, username: User):
         """
         Функция определения подписан ли текущий пользователь на автора.
         """
@@ -38,8 +38,35 @@ class UsersSerializer(UserSerializer):
         if not request or request.user.is_anonymous:
             return False
         return Follow.objects.filter(
-            user=request.user, author=obj
+            user=request.user, author=username
         ).exists()
+
+
+class CustomUserCreateSerializer(UserCreateSerializer):
+    """
+    Сериализатор для регистрации пользователя.
+    """
+    class Meta:
+        model = User
+        fields = (
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'password'
+        )
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = User.objects.create(
+            email=validated_data['email'],
+            username=validated_data['username'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name']
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
 
 
 class FollowListSerializer(ModelSerializer):
@@ -168,7 +195,7 @@ class RecipeSerializer(ModelSerializer):
         read_only=True,
         source='ingridients_recipe',
     )
-    author = UsersSerializer(read_only=True)
+    author = CustomUserSerializer(read_only=True)
     is_in_shopping_cart = SerializerMethodField(read_only=True)
     is_favorited = SerializerMethodField(read_only=True)
 
@@ -227,7 +254,7 @@ class CreateIngredientRecipeSerializer(ModelSerializer):
 
 
 class CreateRecipeSerializer(ModelSerializer):
-    author = UsersSerializer(read_only=True)
+    author = CustomUserSerializer(read_only=True)
     image = Base64ImageField(use_url=True, max_length=None)
     ingredients = CreateIngredientRecipeSerializer(many=True)
     tags = PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)

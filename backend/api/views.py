@@ -24,7 +24,7 @@ from recipes.models import (Favorite, Ingredient, IngredientRecipe,
 from users.models import Follow, User
 
 
-class UsersViewSet(UserViewSet):
+class CustomUserViewSet(UserViewSet):
     """
     Кастомный юзер вьюсет.
     """
@@ -33,7 +33,7 @@ class UsersViewSet(UserViewSet):
     @action(
         methods=['get'],
         detail=False,
-        permission_classes=(IsAuthenticated,)
+        permission_classes=[IsAuthenticated]
     )
     def me(self, request, *args, **kwargs):
         self.get_object = self.get_instance
