@@ -1,14 +1,12 @@
-﻿from django.conf import settings
-from django.db.transaction import atomic
+﻿from django.db.transaction import atomic
 from django.shortcuts import get_object_or_404
-from djoser.serializers import UserCreateSerializer, UserSerializer
+from djoser.serializers import UserSerializer
 from drf_base64.fields import Base64ImageField
-from rest_framework import serializers
 from rest_framework.serializers import (IntegerField, ModelSerializer,
                                         PrimaryKeyRelatedField,
+                                        SlugRelatedField,
                                         SerializerMethodField,
                                         ValidationError)
-from rest_framework.validators import UniqueTogetherValidator
 
 from recipes.models import (Favorite, Ingredient, IngredientRecipe,
                             Recipe, ShoppingCart, Tag)
@@ -42,37 +40,6 @@ class UsersSerializer(UserSerializer):
         return Follow.objects.filter(
             user=request.user, author=obj
         ).exists()
-
-
-class UserCreateSerializer(UserCreateSerializer):
-    """
-    Класс сериализатора для создание пользователя.
-    """
-
-    class Meta:
-        model = User
-        fields = (
-            'email',
-            'username',
-            'first_name',
-            'last_name',
-            'password',
-            'role'
-        )
-
-    def validate_username(self, data):
-        if User.objects.filter(username=data).exists():
-            raise ValidationError(
-                "Пользователь уже зарегестрирован."
-            )
-        return data
-
-    def validate_email(self, data):
-        if User.objects.filter(email=data).exists():
-            raise ValidationError(
-                "Email уже зарегестрировано."
-            )
-        return data
 
 
 class FollowListSerializer(ModelSerializer):
@@ -128,49 +95,26 @@ class FollowSerializer(ModelSerializer):
         model = Follow
         fields = ('user', 'author')
 
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Follow.objects.all(),
-                fields=('user', 'author'),
-                message='На этого пользователя Вы уже подписаны!'
-            )
-        ]
-
     def validate(self, data):
         get_object_or_404(User, username=data['author'])
         if self.context['request'].user == data['author']:
             raise ValidationError({
-                'errors': 'Ты не пожешь подписаться сам на себя.'
+                'errors': 'На самого себя Вы не можете подписаться.'
+            })
+        if Follow.objects.filter(
+                user=self.context['request'].user,
+                author=data['author']
+        ):
+            raise ValidationError({
+                'errors': 'Вы уже подписан на этого пользователя.'
             })
         return data
 
     def to_representation(self, instance):
         return FollowListSerializer(
             instance.author,
-            context={
-                'request': self.context.get('request')
-            }
+            context={'request': self.context.get('request')}
         ).data
-
-
-class FavoriteOrCartSerializer(ModelSerializer):
-    """
-    Отображение рецептов в избранном, списке покупок.
-    """
-
-    class Meta:
-        model = Recipe
-        fields = (
-            'id',
-            'name',
-            'image',
-            'cooking_time'
-        )
-        read_only_fields = (
-            'name',
-            'image',
-            'cooking_time'
-        )
 
 
 class TagSerializer(ModelSerializer):
@@ -193,25 +137,18 @@ class IngredientSerializer(ModelSerializer):
         fields = ('id', 'name', 'measurement_unit')
 
 
-class IngredientsRecipesSaveSerializator(serializers.Serializer):
-    """
-    Сериализатор для сохранения ингридентов рецепта.
-    """
-
-    id = IntegerField()
-    amount = IntegerField(min_value=settings.MIN_PRODUCT)
-
-
 class IngredientRecipeSerializer(ModelSerializer):
-    id = IntegerField(
+    id = PrimaryKeyRelatedField(
         source='ingredient',
         read_only=True
     )
-    name = serializers.CharField(
+    name = SlugRelatedField(
+        slug_field='name',
         source='ingredient',
         read_only=True
     )
-    measurement_unit = serializers.RelatedField(
+    measurement_unit = SlugRelatedField(
+        slug_field='measurement_unit',
         source='ingredient',
         read_only=True
     )
@@ -276,7 +213,7 @@ class CreateIngredientRecipeSerializer(ModelSerializer):
         if int(data) < 1:
             raise ValidationError({
                 'ingredients': (
-                    'Количество должно быть больше 1'
+                    'Количество не должно быть 0.'
                 ),
                 'msg': data
             })

@@ -2,11 +2,12 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import (
     SAFE_METHODS, AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 
 from .filters import IngredientSearchFilter, RecipeFilterSet
 from .paginator import PagePaginator
@@ -82,7 +83,7 @@ class UsersViewSet(UserViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class RecipeViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(ModelViewSet):
     """
     Вьюсет обработки моделей рецептов.
     """
@@ -100,7 +101,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def post_method_for_actions(request, pk, serializers):
-        data = {'user': request.user.id, 'recipe': pk}
+        data = {
+            'user': request.user.id,
+            'recipe': pk
+        }
         serializer = serializers(data=data, context={
             'request': request
         })
@@ -167,7 +171,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             request=request, pk=pk, model=Favorite)
 
 
-class IngredientViewSet(viewsets.ModelViewSet):
+class IngredientViewSet(ModelViewSet):
     """
     Вьюсет обработки модели продуктов.
     """
@@ -179,7 +183,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
     search_fields = ('^name',)
 
 
-class TagViewSet(viewsets.ModelViewSet):
+class TagViewSet(ModelViewSet):
     """
     Вьюсет обработки моделей тегов.
     Добавить тег может администратор.
