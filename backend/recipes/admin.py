@@ -49,7 +49,7 @@ class RecipeAdmin(admin.ModelAdmin):
     Параметры админ панели (управление рецептами).
     """
     list_display = ('id', 'author', 'name', 'cooking_time',
-                    'in__favorite', 'pub_date')
+                    'in_favorite', 'pub_date')
     search_fields = ('name', 'author', 'tags')
     empty_value_display = '-пусто-'
     list_filter = ('author', 'name', 'tags')
