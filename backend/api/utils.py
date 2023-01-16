@@ -10,18 +10,18 @@ font = os.path.join(
 )
 
 
-def generate_pdf(queryset):
-    pdf_file = FPDF()
-    pdf_file.add_page()
-    pdf_file.add_font("Calibri", "", font, uni=True)
-    pdf_file.set_font("Calibri", 14)
+def generate_pdf(cart):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.add_font("Calibri", "", font, uni=True)
+    pdf.set_font("Calibri", 14)
     line = 1
-    for ingredients in queryset:
-        pdf_file.cell(12, 12, txt=ingredients, align='L', ln=line)
+    for ingredient in cart:
+        pdf.cell(12, 12, txt=ingredient, align='L', ln=line)
         line += 1
-    pdf_file.output('reports.pdf', 'F')
+    pdf.output('report.pdf', 'F')
     return FileResponse(
-        open('reports.pdf', 'rb'),
+        open('report.pdf', 'rb'),
         as_attachment=True,
         content_type='application/pdf'
     )
