@@ -46,14 +46,11 @@ class Ingredient(models.Model):
         max_length=200,
         verbose_name='Название ингредиента',
         help_text='Введите название продуктов',
-        null=False,
         db_index=True
     )
     measurement_unit = models.CharField(
         max_length=200,
-        verbose_name='Единица измерения',
-        help_text='Введите единицы измерения',
-        null=False
+        help_text='Введите единицы измерения'
     )
 
     class Meta:
@@ -73,7 +70,6 @@ class Recipe(models.Model):
         User,
         on_delete=models.CASCADE,
         verbose_name='Автор рецепта',
-        related_name='recipes',
         help_text='Выберите автора рецепта'
     )
     ingredients = models.ManyToManyField(
@@ -85,7 +81,6 @@ class Recipe(models.Model):
     )
     tags = models.ManyToManyField(
         Tag,
-        related_name='recipes',
         verbose_name='Теги'
     )
     pub_date = models.DateTimeField(
@@ -112,7 +107,6 @@ class Recipe(models.Model):
         default=None
     )
     cooking_time = models.IntegerField(
-        default=1,
         validators=[MinValueValidator(1, 'Значение не может быть меньше 1')],
         verbose_name='Время готовки в минутах',
         help_text='Введите время приготовления'
@@ -149,9 +143,12 @@ class Favorite(models.Model):
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранные'
         default_related_name = 'favorites'
-        UniqueConstraint(
-            fields=['recipe', 'user'],
-            name='unique_favorites')
+        constraints = (
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='unique_favorites',
+            ),
+        )
 
     def __str__(self):
         return f"{self.user} избран {self.recipe.name}"
@@ -173,17 +170,16 @@ class ShoppingCart(models.Model):
         verbose_name='Рецепты',
         help_text='Выберите рецепты для добавления в корзины'
     )
-    added = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name='Дата добавления в список покупок'
-    )
 
     class Meta:
         verbose_name = 'Покупка'
         verbose_name_plural = 'Покупки'
-        UniqueConstraint(
-            fields=['user', 'recipe'],
-            name='unique_cart')
+        constraints = (
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='unique_cart',
+            ),
+        )
 
     def __str__(self):
         return (f'Пользователь: {self.user.username},'
@@ -217,9 +213,12 @@ class IngredientRecipe(models.Model):
         verbose_name = 'Ингредиент в рецепте'
         verbose_name_plural = 'Ингредиенты в рецепте'
         default_related_name = 'ingridients_recipe'
-        UniqueConstraint(
-            fields=['ingredient', 'recipe'],
-            name='unique_ingredient')
+        constraints = (
+            models.UniqueConstraint(
+                fields=('recipe', 'ingredient',),
+                name='recipe_ingredient_exists',
+            ),
+        )
 
     def __str__(self):
         return (f'В рецепте {self.recipe.name} {self.amount} '

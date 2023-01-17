@@ -1,4 +1,4 @@
-from django_filters import rest_framework as django_filter
+from django_filters import rest_framework as filter
 from rest_framework import filters
 
 from recipes.models import Recipe
@@ -8,14 +8,14 @@ class IngredientSearchFilter(filters.SearchFilter):
     search_param = 'name'
 
 
-class RecipeFilterSet(django_filter.FilterSet):
-    tags = django_filter.AllValuesMultipleFilter(
+class RecipeFilterSet(filter.FilterSet):
+    tags = filter.AllValuesMultipleFilter(
         field_name='tags__slug'
     )
-    is_favorited = django_filter.BooleanFilter(
+    is_favorited = filter.BooleanFilter(
         method='get_is_favorited'
     )
-    is_in_shopping_cart = django_filter.BooleanFilter(
+    is_in_shopping_cart = filter.BooleanFilter(
         method='get_is_in_shopping_cart'
     )
 

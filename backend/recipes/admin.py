@@ -28,10 +28,10 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     """
     Параметры админ зоны продуктовой корзины.
     """
-    list_display = ('id', 'user', 'recipe')
+    list_display = ('user', 'recipe')
     search_fields = ('user', )
     empty_value_display = '-пусто-'
-    list_filter = ('user',)
+    list_filter = ('user', 'recipe')
 
 
 class FavoriteAdmin(admin.ModelAdmin):
@@ -39,28 +39,28 @@ class FavoriteAdmin(admin.ModelAdmin):
     Параметры админ зоны избранных рецептов.
     """
     list_display = ('user', 'recipe')
-    search_fields = ('user', )
+    search_fields = ('user', 'recipe')
     empty_value_display = '-пусто-'
-    list_filter = ('user',)
+    list_filter = ('user', 'recipe')
 
 
 class RecipeAdmin(admin.ModelAdmin):
     """
     Параметры админ панели (управление рецептами).
     """
-    list_display = ('id', 'author', 'name', 'cooking_time',
-                    'in_favorite', 'pub_date')
-    search_fields = ('name', 'author', 'tags')
+    list_display = ('author', 'name', 'in_favorite')
+    search_fields = ('name')
     empty_value_display = '-пусто-'
     list_filter = ('author', 'name', 'tags')
     filter_horizontal = ('tags',)
+    readonly_fields = ('in_favorite',)
 
     def in_favorite(self, obj):
         """
         Метод для подсчета общего числа
         добавлений этого рецепта в избранное.
         """
-        return Favorite.objects.filter(recipe=obj).count()
+        return obj.in_favorite.all().count()
     in_favorite.short_description = 'Число добавлении в избранное'
 
 
