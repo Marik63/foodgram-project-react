@@ -7,6 +7,7 @@ from rest_framework.serializers import (IntegerField, ModelSerializer,
                                         SlugRelatedField,
                                         SerializerMethodField,
                                         ValidationError)
+from rest_framework.validators import UniqueTogetherValidator
 
 from recipes.models import (Favorite, Ingredient, IngredientRecipe,
                             Recipe, ShoppingCart, Tag)
@@ -189,6 +190,10 @@ class IngredientRecipeSerializer(ModelSerializer):
 
 
 class RecipeSerializer(ModelSerializer):
+    """
+    Сериализатор для рецептов.
+    """
+
     tags = TagSerializer(many=True, read_only=True)
     ingredients = IngredientRecipeSerializer(
         many=True,
@@ -227,6 +232,10 @@ class RecipeSerializer(ModelSerializer):
 
 
 class CreateIngredientRecipeSerializer(ModelSerializer):
+    """
+    Сериализатор для создания ингредиентов.
+    """
+
     id = PrimaryKeyRelatedField(
         source='ingredient',
         queryset=Ingredient.objects.all()
@@ -240,7 +249,7 @@ class CreateIngredientRecipeSerializer(ModelSerializer):
         if int(data) < 1:
             raise ValidationError({
                 'ingredients': (
-                    'Количество не должно быть 0.'
+                    'Количество ингридиентов не должно быть 0.'
                 ),
                 'msg': data
             })
@@ -254,6 +263,10 @@ class CreateIngredientRecipeSerializer(ModelSerializer):
 
 
 class CreateRecipeSerializer(ModelSerializer):
+    """
+    Сериализатор для создания рецептов.
+    """
+
     author = CustomUserSerializer(read_only=True)
     image = Base64ImageField(use_url=True, max_length=None)
     ingredients = CreateIngredientRecipeSerializer(many=True)
@@ -338,31 +351,33 @@ class FavoriteSerializer(ModelSerializer):
 
     class Meta:
         model = Favorite
-        fields = ('user', 'recipe')
+        fields = '__all__'
 
-    def validate(self, data):
-        request = self.context.get('request')
-        if not request or request.user.is_anonymous:
-            return False
-        recipe = data['recipe']
-        if Favorite.objects.filter(
-            user=request.user,
-            recipe=recipe
-        ).exists():
-            raise ValidationError({
-                'errors': 'Этот рецепт уже добавлен в избранное!'
-            })
-        return data
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Favorite.objects.all(),
+                fields=('user', 'recipe'),
+                message='Этот рецепт уже добавлен в избранное.'
+            )
+        ]
 
-    def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {
-            'request': request
-        }
-        return RecipeShortInfo(
-            instance.recipe,
-            context=context
-        ).data
+
+class FavoriteOrCartSerializer(ModelSerializer):
+    """Отображение рецептов в избранном, списке покупок."""
+
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'name',
+            'image',
+            'cooking_time'
+        )
+        read_only_fields = (
+            'name',
+            'image',
+            'cooking_time'
+        )
 
 
 class ShoppingCartSerializer(ModelSerializer):
@@ -372,25 +387,12 @@ class ShoppingCartSerializer(ModelSerializer):
 
     class Meta:
         model = ShoppingCart
-        fields = ('recipe', 'user')
+        fields = '__all__'
 
-    def validate(self, data):
-        user = self.context.get('request').user
-        recipe = data['recipe']
-        if ShoppingCart.objects.filter(
-            user=user,
-            recipe=recipe
-        ).exists():
-            raise ValidationError({
-                'errors': 'Рецепт уже добавлен в список покупок!'})
-        return data
-
-    def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {
-            'request': request
-        }
-        return RecipeShortInfo(
-            instance.recipe,
-            context=context
-        ).data
+        validators = [
+            UniqueTogetherValidator(
+                queryset=ShoppingCart.objects.all(),
+                fields=('user', 'recipe'),
+                message='Этот рецепт уже добавлен в список покупок.'
+            )
+        ]
