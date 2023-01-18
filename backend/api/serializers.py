@@ -1,5 +1,4 @@
 ﻿from django.db.transaction import atomic
-from django.shortcuts import get_object_or_404
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_base64.fields import Base64ImageField
 from rest_framework.serializers import (IntegerField, ModelSerializer,
@@ -109,26 +108,19 @@ class FollowListSerializer(ModelSerializer):
         model = Follow
         fields = ('user', 'author')
 
-    def validate(self, data):
-        get_object_or_404(User, username=data['author'])
-        if self.context['request'].user == data['author']:
-            raise ValidationError({
-                'errors': 'На самого себя Вы не можете подписаться.'
-            })
-        if Follow.objects.filter(
-                user=self.context['request'].user,
-                author=data['author']
-        ):
-            raise ValidationError({
-                'errors': 'Вы уже подписан на этого пользователя.'
-            })
-        return data
+        validators = [
+            ValidationError(
+                queryset=Follow.objects.all(),
+                fields=('user', 'author'),
+                message='Вы уже подписаны на этого пользователя.'
+            )
+        ]
 
-    def to_representation(self, instance):
-        return FollowListSerializer(
-            instance.author,
-            context={'request': self.context.get('request')}
-        ).data
+    def validate(self, data):
+        if data['user'] == data['author']:
+            raise ValidationError(
+                'Вы не можете подписаться на самого себя.')
+        return data
 
 
 class TagSerializer(ModelSerializer):
