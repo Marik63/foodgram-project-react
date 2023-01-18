@@ -1,5 +1,6 @@
 from django_filters.rest_framework import FilterSet
-from django_filters.rest_framework.filters import AllValuesMultipleFilter, BooleanFilter
+from django_filters.rest_framework.filters import (AllValuesMultipleFilter,
+                                                   BooleanFilter)
 
 from rest_framework.filters import SearchFilter
 
