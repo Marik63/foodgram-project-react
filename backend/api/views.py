@@ -14,7 +14,7 @@ from .filters import RecipeFilterSet
 from .paginator import PagePaginator
 from .permissions import IsAuthorOrAdminOrReadOnly
 from .serializers import (CreateRecipeSerializer,
-                          FavoriteSerializer, FollowListSerializer,
+                          FavoriteSerializer,
                           FollowSerializer, IngredientSerializer,
                           RecipeSerializer, ShoppingCartSerializer,
                           TagSerializer)
@@ -31,57 +31,59 @@ class CustomUserViewSet(UserViewSet):
     """
     pagination_class = PagePaginator
 
-    @action(
-        methods=['get'],
-        detail=False,
-        permission_classes=[IsAuthenticated]
-    )
-    def me(self, request, *args, **kwargs):
-        self.get_object = self.get_instance
-        return self.retrieve(request, *args, **kwargs)
+    @action(detail=True, permission_classes=[IsAuthenticated])
+    def subscribe(self, request, id=None):
+        user = request.user
+        author = get_object_or_404(User, id=id)
 
-    @action(
-        methods=['get'],
-        detail=False
-    )
-    def subscriptions(self, request):
-        subscriptions_list = self.paginate_queryset(
-            User.objects.filter(following__user=request.user)
-        )
-        serializer = FollowListSerializer(
-            subscriptions_list,
-            many=True,
-            context={
+        if user == author:
+            return Response({
+                'errors': 'Вы не можете подписываться на самого себя'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if Follow.objects.filter(
+            user=user,
+            author=author
+        ).exists():
+            return Response({
+                'errors': 'Вы уже подписаны на данного пользователя'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        follow = Follow.objects.create(user=user, author=author)
+        serializer = FollowSerializer(
+            follow, context={
                 'request': request
             }
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @subscribe.mapping.delete
+    def del_subscribe(self, request, id=None):
+        user = request.user
+        author = get_object_or_404(User, id=id)
+        if user == author:
+            return Response({
+                'errors': 'Вы не можете отписываться от самого себя'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        follow = Follow.objects.filter(user=user, author=author)
+        if follow.exists():
+            follow.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response({
+            'errors': 'Вы уже отписались'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, permission_classes=[IsAuthenticated])
+    def subscriptions(self, request):
+        user = request.user
+        queryset = Follow.objects.filter(user=user)
+        pages = self.paginate_queryset(queryset)
+        serializer = FollowSerializer(
+            pages,
+            many=True,
+            context={'request': request}
         )
         return self.get_paginated_response(serializer.data)
-
-    @action(
-        methods=['post', 'delete'],
-        detail=True
-    )
-    def subscribe(self, request, id):
-        if request.method != 'POST':
-            subscription = get_object_or_404(
-                Follow,
-                author=get_object_or_404(User, id=id),
-                user=request.user
-            )
-            self.perform_destroy(subscription)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        serializer = FollowSerializer(
-            data={
-                'user': request.user.id,
-                'author': get_object_or_404(User, id=id).id
-            },
-            context={
-                'request': request
-            }
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class RecipeViewSet(ModelViewSet):

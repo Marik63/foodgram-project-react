@@ -30,15 +30,16 @@ class CustomUserSerializer(UserSerializer):
             'is_subscribed'
         )
 
-    def get_is_subscribed(self, username: User):
+    def get_is_subscribed(self, obj):
         """
         Функция определения подписан ли текущий пользователь на автора.
         """
-        request = self.context.get('request')
-        if not request or request.user.is_anonymous:
+        user = self.context.get('request').user
+        if user.is_anonymous:
             return False
         return Follow.objects.filter(
-            user=request.user, author=username
+            user=user,
+            author=obj.id
         ).exists()
 
 
@@ -50,12 +51,19 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         model = User
         fields = (
             'email',
+            'id',
             'username',
             'first_name',
             'last_name',
             'password'
         )
-        extra_kwargs = {'password': {'write_only': True}}
+        extra_kwargs = {
+            'email': {'required': True},
+            'username': {'required': True},
+            'password': {'required': True},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+        }
 
     def create(self, validated_data):
         user = User.objects.create(
