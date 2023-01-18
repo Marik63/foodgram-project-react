@@ -17,7 +17,7 @@ class CustomUserSerializer(UserSerializer):
     """
     Класс сериализатора для управления пользователями.
     """
-    is_subscribed = SerializerMethodField(read_only=True)
+    is_subscribed = SerializerMethodField()
 
     class Meta:
         model = User

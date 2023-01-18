@@ -2,7 +2,7 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import (
@@ -22,7 +22,7 @@ from .utils import generate_pdf
 
 from recipes.models import (Favorite, Ingredient, IngredientRecipe,
                             Recipe, ShoppingCart, Tag)
-from users.models import User
+from users.models import Follow, User
 
 
 class CustomUserViewSet(UserViewSet):
@@ -32,45 +32,55 @@ class CustomUserViewSet(UserViewSet):
     pagination_class = PagePaginator
 
     @action(
-        methods=['get'], detail=False,
-        serializer_class=FollowListSerializer
+        methods=['get'],
+        detail=False,
+        permission_classes=[IsAuthenticated]
     )
-    def subscriptions(self, request):
-        user = self.request.user
-
-        def queryset():
-            return User.objects.filter(following__user=user)
-
-        self.get_queryset = queryset
-        return self.list(request)
+    def me(self, request, *args, **kwargs):
+        self.get_object = self.get_instance
+        return self.retrieve(request, *args, **kwargs)
 
     @action(
-        methods=['post', 'delete'], detail=True,
-        serializer_class=FollowSerializer
+        methods=['get'],
+        detail=False
+    )
+    def subscriptions(self, request):
+        subscriptions_list = self.paginate_queryset(
+            User.objects.filter(following__user=request.user)
+        )
+        serializer = FollowListSerializer(
+            subscriptions_list,
+            many=True,
+            context={
+                'request': request
+            }
+        )
+        return self.get_paginated_response(serializer.data)
+
+    @action(
+        methods=['post', 'delete'],
+        detail=True
     )
     def subscribe(self, request, id):
-        user = self.request.user
-        following = self.get_object()
-        if request.method == 'DELETE':
-            instance = user.follower.filter(following=following)
-            if not instance:
-                raise serializers.ValidationError(
-                    {
-                        'errors': [
-                            'Вы не подписаны на этого автора.'
-                        ]
-                    }
-                )
-            instance.delete()
+        if request.method != 'POST':
+            subscription = get_object_or_404(
+                Follow,
+                author=get_object_or_404(User, id=id),
+                user=request.user
+            )
+            self.perform_destroy(subscription)
             return Response(status=status.HTTP_204_NO_CONTENT)
-        data = {
-            'user': user.id,
-            'following': id
-        }
-        subscription = FollowSerializer(data=data)
-        subscription.is_valid(raise_exception=True)
-        subscription.save()
-        serializer = self.get_serializer(following)
+        serializer = FollowSerializer(
+            data={
+                'user': request.user.id,
+                'author': get_object_or_404(User, id=id).id
+            },
+            context={
+                'request': request
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
