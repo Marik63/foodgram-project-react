@@ -69,7 +69,7 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         return user
 
 
-class FollowListSerializer(ModelSerializer):
+class FollowSerializer(ModelSerializer):
     """
     Класс сериализатора списка на кого подписан пользователь.
     """
@@ -114,7 +114,7 @@ class FollowListSerializer(ModelSerializer):
         ).exists()
 
 
-class FollowSerializer(ModelSerializer):
+class FollowListSerializer(ModelSerializer):
     """
     Класс сериализатора для управления подписками.
     """
