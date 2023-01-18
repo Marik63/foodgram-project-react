@@ -15,7 +15,7 @@ from .paginator import PagePaginator
 from .permissions import IsAuthorOrAdminOrReadOnly
 from .serializers import (CreateRecipeSerializer,
                           FavoriteSerializer, FollowListSerializer,
-                          FollowSerializer, IngredientSerializer,
+                          IngredientSerializer,
                           RecipeSerializer, ShoppingCartSerializer,
                           TagSerializer)
 from .utils import generate_pdf
@@ -67,7 +67,7 @@ class CustomUserViewSet(UserViewSet):
         author_obj = get_object_or_404(User, id=author_id)
 
         if request.method == 'POST':
-            serializer = FollowSerializer(
+            serializer = FollowListSerializer(
                 instance=author_obj,
                 data=request.data,
                 context={'request': request}
