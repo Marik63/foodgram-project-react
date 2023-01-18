@@ -58,30 +58,32 @@ class CustomUserViewSet(UserViewSet):
         return self.get_paginated_response(serializer.data)
 
     @action(
-        methods=['post', 'delete'],
+        methods=['post'],
         detail=True
     )
-    def subscribe(self, request, id):
-        if request.method != 'POST':
-            subscription = get_object_or_404(
-                Follow,
-                author=get_object_or_404(User, id=id),
-                user=request.user
+    def subscribe(self, request, **kwargs):
+        user = request.user
+        author_id = kwargs['id']
+        author_obj = get_object_or_404(User, id=author_id)
+
+        if request.method == 'POST':
+            serializer = FollowSerializer(
+                instance=author_obj,
+                data=request.data,
+                context={'request': request}
             )
-            self.perform_destroy(subscription)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        serializer = FollowSerializer(
-            data={
-                'user': request.user.id,
-                'author': get_object_or_404(User, id=id).id
-            },
-            context={
-                'request': request
-            }
+
+            if serializer.is_valid():
+                Follow.objects.create(
+                    user=user, author_id=author_id
+                )
+                return Response(
+                    serializer.data, status=status.HTTP_200_OK
+                )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
         )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class RecipeViewSet(ModelViewSet):
