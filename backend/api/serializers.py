@@ -88,14 +88,14 @@ class FollowSerializer(ModelSerializer):
 
     def get_recipes(self, obj):
         limit = self.context['request'].query_params.get(
-            'recipes_limit'
+            'recipes_limit', 10
         )
         recipes = obj.recipes.all()[:int(limit)]
         return RecipeShortInfo(recipes, many=True).data
 
     def get_is_subscribed(self, obj):
         user = self.context['request'].user
-        return bool(obj.following.filter(user=user))
+        return bool(obj.author.filter(user=user))
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()
