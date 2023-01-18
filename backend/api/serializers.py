@@ -88,7 +88,7 @@ class FollowSerializer(ModelSerializer):
 
     def get_recipes(self, obj):
         limit = self.context['request'].query_params.get(
-            'recipes_limit', 10
+            'recipes_limit'
         )
         recipes = obj.recipes.all()[:int(limit)]
         return RecipeShortInfo(recipes, many=True).data
