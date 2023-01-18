@@ -19,7 +19,6 @@ class Tag(models.Model):
     )
     slug = models.SlugField(
         max_length=200,
-        related_name='tags',
         verbose_name='Slug',
         help_text='Введите текстовый идентификатор тега',
         unique=True
