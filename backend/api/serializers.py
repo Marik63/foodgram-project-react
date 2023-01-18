@@ -70,6 +70,9 @@ class CustomUserCreateSerializer(UserCreateSerializer):
 
 
 class FollowListSerializer(ModelSerializer):
+    """
+    Класс сериализатора списка на кого подписан пользователь.
+    """
     recipes = SerializerMethodField()
     recipes_count = SerializerMethodField()
     is_subscribed = SerializerMethodField(read_only=True)
@@ -115,7 +118,6 @@ class FollowSerializer(ModelSerializer):
     """
     Класс сериализатора для управления подписками.
     """
-
     class Meta:
         model = Follow
         fields = ('user', 'author')
@@ -163,20 +165,17 @@ class IngredientSerializer(ModelSerializer):
 
 
 class IngredientRecipeSerializer(ModelSerializer):
-    """
-    Сериализатор для ингредиентов в рецепте.
-    """
     id = PrimaryKeyRelatedField(
+        source='ingredient',
+        read_only=True
+    )
+    name = SlugRelatedField(
+        slug_field='name',
         source='ingredient',
         read_only=True
     )
     measurement_unit = SlugRelatedField(
         slug_field='measurement_unit',
-        source='ingredient',
-        read_only=True,
-    )
-    name = SlugRelatedField(
-        slug_field='name',
         source='ingredient',
         read_only=True
     )
@@ -193,6 +192,7 @@ class RecipeSerializer(ModelSerializer):
     """
     Сериализатор для рецептов.
     """
+
     tags = TagSerializer(many=True, read_only=True)
     ingredients = IngredientRecipeSerializer(
         many=True,
@@ -248,7 +248,7 @@ class CreateIngredientRecipeSerializer(ModelSerializer):
         if int(data) < 1:
             raise ValidationError({
                 'ingredients': (
-                    'Количество ингридиентов не должно быть ноль.'
+                    'Количество ингридиентов не должно быть 0.'
                 ),
                 'msg': data
             })
@@ -265,6 +265,7 @@ class CreateRecipeSerializer(ModelSerializer):
     """
     Сериализатор для создания рецептов.
     """
+
     author = CustomUserSerializer(read_only=True)
     image = Base64ImageField(use_url=True, max_length=None)
     ingredients = CreateIngredientRecipeSerializer(many=True)
@@ -274,8 +275,8 @@ class CreateRecipeSerializer(ModelSerializer):
     class Meta:
         model = Recipe
         fields = (
-            'id', 'image', 'tags', 'author', 'ingredients',
-            'name', 'text', 'cooking_time'
+            'id', 'image', 'tags', 'author',
+            'ingredients', 'name', 'text', 'cooking_time'
         )
 
     def create_ingredients(self, recipe, ingredients):
@@ -299,7 +300,7 @@ class CreateRecipeSerializer(ModelSerializer):
             ingredients_list.append(ingredient_id)
         if data['cooking_time'] <= 0:
             raise ValidationError(
-                'Время приготовления не должно быть ноль.'
+                'Время приготовления не должно быть 0.'
             )
         return data
 
@@ -342,35 +343,6 @@ class RecipeShortInfo(ModelSerializer):
         )
 
 
-class ShoppingCartSerializer(ModelSerializer):
-    """
-    Добавление рецепта в список покупок.
-    """
-
-    class Meta:
-        fields = ('recipe', 'user')
-        model = ShoppingCart
-
-    def validate(self, data):
-        request = self.context.get('request')
-        recipe = data['recipe']
-        if ShoppingCart.objects.filter(
-            user=request.user,
-            recipe=recipe
-        ).exists():
-            raise ValidationError({
-                'errors': 'Рецепт уже добавлен в список покупок!'
-            })
-        return data
-
-    def to_representation(self, instance):
-        request = self.context.get('request')
-        context = {
-            'request': request
-        }
-        return RecipeShortInfo(instance.recipe, context=context).data
-
-
 class FavoriteSerializer(ModelSerializer):
     """
     Добавление рецепта в избранное.
@@ -400,4 +372,37 @@ class FavoriteSerializer(ModelSerializer):
             'request': request
         }
         return RecipeShortInfo(
-            instance.recipe, context=context).data
+            instance.recipe,
+            context=context
+        ).data
+
+
+class ShoppingCartSerializer(ModelSerializer):
+    """
+    Добавление рецепта в список покупок.
+    """
+
+    class Meta:
+        model = ShoppingCart
+        fields = ('recipe', 'user')
+
+    def validate(self, data):
+        request = self.context.get('request')
+        recipe = data['recipe']
+        if ShoppingCart.objects.filter(
+            user=request.user,
+            recipe=recipe
+        ).exists():
+            raise ValidationError({
+                'errors': 'Рецепт уже добавлен в список покупок!'})
+        return data
+
+    def to_representation(self, instance):
+        request = self.context.get('request')
+        context = {
+            'request': request
+        }
+        return RecipeShortInfo(
+            instance.recipe,
+            context=context
+        ).data
