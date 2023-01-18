@@ -40,8 +40,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'djoser',
     'colorfield',
-    'django_filters',
-    'reportlab',
+    'django_filters'
 ]
 
 MIDDLEWARE = [
