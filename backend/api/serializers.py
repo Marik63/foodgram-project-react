@@ -69,7 +69,7 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         return user
 
 
-class FollowSerializer(ModelSerializer):
+class FollowListSerializer(ModelSerializer):
     """
     Класс сериализатора списка на кого подписан пользователь.
     """
@@ -114,7 +114,7 @@ class FollowSerializer(ModelSerializer):
         ).exists()
 
 
-class FollowListSerializer(ModelSerializer):
+class FollowSerializer(ModelSerializer):
     """
     Класс сериализатора для управления подписками.
     """
@@ -126,14 +126,14 @@ class FollowListSerializer(ModelSerializer):
         get_object_or_404(User, username=data['author'])
         if self.context['request'].user == data['author']:
             raise ValidationError({
-                'errors': 'На самого себя Вы не можете подписаться.'
+                'errors': 'Ты не пожешь подписаться на себя.'
             })
         if Follow.objects.filter(
                 user=self.context['request'].user,
                 author=data['author']
         ):
             raise ValidationError({
-                'errors': 'Вы уже подписан на этого пользователя.'
+                'errors': 'Уже подписан.'
             })
         return data
 
@@ -335,10 +335,6 @@ class CreateRecipeSerializer(ModelSerializer):
 
 
 class RecipeShortInfo(ModelSerializer):
-    """
-    Отображение рецептов в избранном, списке покупок.
-    """
-
     class Meta:
         model = Recipe
         fields = (

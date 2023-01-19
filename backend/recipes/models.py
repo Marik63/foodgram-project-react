@@ -235,6 +235,7 @@ class TagRecipe(models.Model):
     tag = models.ForeignKey(
         Tag,
         on_delete=models.CASCADE,
+        related_name='tags',
         verbose_name='Теги',
         help_text='Выберите теги рецепта'
     )
