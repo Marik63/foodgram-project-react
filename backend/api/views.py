@@ -2,7 +2,8 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from rest_framework import serializers, status
+from django.contrib.auth.hashers import make_password
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import (
@@ -13,67 +14,85 @@ from rest_framework.viewsets import ModelViewSet
 from .filters import RecipeFilterSet
 from .paginator import PagePaginator
 from .permissions import IsAuthorOrAdminOrReadOnly
-from .serializers import (CreateRecipeSerializer,
-                          FavoriteSerializer, FollowListSerializer,
-                          FollowSerializer, IngredientSerializer,
-                          RecipeSerializer, ShoppingCartSerializer,
-                          TagSerializer)
+from .serializers import (CreateRecipeSerializer, CustomUserSerializer,
+                          FavoriteSerializer, FollowSerializer,
+                          IngredientSerializer, RecipeSerializer,
+                          ShoppingCartSerializer, TagSerializer)
 from .utils import generate_pdf
 
 from recipes.models import (Favorite, Ingredient, IngredientRecipe,
                             Recipe, ShoppingCart, Tag)
-from users.models import User
+from users.models import Follow, User
 
 
 class CustomUserViewSet(UserViewSet):
     """
     Кастомный юзер вьюсет.
     """
+    permission_classes = [IsAuthorOrAdminOrReadOnly]
+    serializer_class = CustomUserSerializer
     pagination_class = PagePaginator
 
-    @action(
-        methods=['get'],
-        detail=False,
-        serializer_class=FollowSerializer
-    )
-    def subscriptions(self, request):
-        user = self.request.user
+    def perform_create(self, serializer):
+        hash_pwd = make_password(serializer.validated_data.get('password'))
+        serializer.save(password=hash_pwd)
 
-        def queryset():
-            return User.objects.filter(following__user=user)
+    @action(methods=['post'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def subscribe(self, request, id=None):
+        """Функция подписки на автора."""
 
-        self.get_queryset = queryset
-        return self.list(request)
+        author = get_object_or_404(User, pk=id)
 
-    @action(
-        methods=['post', 'delete'],
-        detail=True,
-        serializer_class=FollowSerializer
-    )
-    def subscribe(self, request, id):
-        user = self.request.user
-        following = self.get_object()
-        if request.method == 'DELETE':
-            instance = user.follower.filter(following=following)
-            if not instance:
-                raise serializers.ValidationError(
-                    {
-                        'errors': [
-                            'Вы не подписаны на этого автора.'
-                        ]
-                    }
-                )
-            instance.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        data = {
-            'user': user.id,
-            'following': id
-        }
-        subscription = FollowListSerializer(data=data)
-        subscription.is_valid(raise_exception=True)
-        subscription.save()
-        serializer = self.get_serializer(following)
+        if request.user == author:
+            return Response({
+                'errors': "Нельзя подписаться на самого себя"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if Follow.objects.filter(user=request.user,
+                                 author=author).exists():
+            return Response({
+                'errors': "Нельзя подписаться дважды"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        follow = Follow.objects.create(
+            user=request.user, author=author
+        )
+        serializer = FollowSerializer(
+            follow, context={'request': request}
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @subscribe.mapping.delete
+    def delete_subscribe(self, request, id=None):
+        """Функции отписки от автора."""
+
+        author = get_object_or_404(User, pk=id)
+
+        if request.user == author:
+            return Response({
+                'errors': "Нельзя отписаться от самого себя"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        subscribe = Follow.objects.filter(user=request.user, author=author)
+
+        if not subscribe.exists():
+            return Response({
+                'errors': "Вы не были подписаны на этого пользователя"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        subscribe.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(methods=['get'], detail=False,
+            permission_classes=[IsAuthenticated], url_path='subscriptions')
+    def subscriptions(self, request):
+        subscriptions = Follow.objects.filter(user=request.user)
+        page = self.paginate_queryset(subscriptions)
+        serializer = FollowSerializer(page, many=True,
+                                      context={'request': request})
+
+        return self.get_paginated_response(serializer.data)
 
 
 class RecipeViewSet(ModelViewSet):
