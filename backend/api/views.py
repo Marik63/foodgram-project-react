@@ -2,7 +2,7 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import (
@@ -15,14 +15,14 @@ from .paginator import PagePaginator
 from .permissions import IsAuthorOrAdminOrReadOnly
 from .serializers import (CreateRecipeSerializer,
                           FavoriteSerializer, FollowListSerializer,
-                          IngredientSerializer,
+                          FollowSerializer, IngredientSerializer,
                           RecipeSerializer, ShoppingCartSerializer,
                           TagSerializer)
 from .utils import generate_pdf
 
 from recipes.models import (Favorite, Ingredient, IngredientRecipe,
                             Recipe, ShoppingCart, Tag)
-from users.models import Follow, User
+from users.models import User
 
 
 class CustomUserViewSet(UserViewSet):
@@ -34,56 +34,46 @@ class CustomUserViewSet(UserViewSet):
     @action(
         methods=['get'],
         detail=False,
-        permission_classes=[IsAuthenticated]
-    )
-    def me(self, request, *args, **kwargs):
-        self.get_object = self.get_instance
-        return self.retrieve(request, *args, **kwargs)
-
-    @action(
-        methods=['get'],
-        detail=False
+        serializer_class=FollowSerializer
     )
     def subscriptions(self, request):
-        subscriptions_list = self.paginate_queryset(
-            User.objects.filter(following__user=request.user)
-        )
-        serializer = FollowListSerializer(
-            subscriptions_list,
-            many=True,
-            context={
-                'request': request
-            }
-        )
-        return self.get_paginated_response(serializer.data)
+        user = self.request.user
+
+        def queryset():
+            return User.objects.filter(following__user=user)
+
+        self.get_queryset = queryset
+        return self.list(request)
 
     @action(
-        methods=['post'],
-        detail=True
+        methods=['post', 'delete'],
+        detail=True,
+        serializer_class=FollowSerializer
     )
-    def subscribe(self, request, **kwargs):
-        user = request.user
-        author_id = kwargs['id']
-        author_obj = get_object_or_404(User, id=author_id)
-
-        if request.method == 'POST':
-            serializer = FollowListSerializer(
-                instance=author_obj,
-                data=request.data,
-                context={'request': request}
-            )
-
-            if serializer.is_valid():
-                Follow.objects.create(
-                    user=user, author_id=author_id
+    def subscribe(self, request, id):
+        user = self.request.user
+        following = self.get_object()
+        if request.method == 'DELETE':
+            instance = user.follower.filter(following=following)
+            if not instance:
+                raise serializers.ValidationError(
+                    {
+                        'errors': [
+                            'Вы не подписаны на этого автора.'
+                        ]
+                    }
                 )
-                return Response(
-                    serializer.data, status=status.HTTP_200_OK
-                )
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            instance.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        data = {
+            'user': user.id,
+            'following': id
+        }
+        subscription = FollowListSerializer(data=data)
+        subscription.is_valid(raise_exception=True)
+        subscription.save()
+        serializer = self.get_serializer(following)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class RecipeViewSet(ModelViewSet):
