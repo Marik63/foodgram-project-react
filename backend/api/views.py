@@ -40,7 +40,7 @@ class CustomUserViewSet(UserViewSet):
         user = self.request.user
 
         def queryset():
-            return User.objects.filter(following__user=user)
+            return User.objects.filter(author__user=user)
 
         self.get_queryset = queryset
         return self.list(request)
@@ -54,7 +54,7 @@ class CustomUserViewSet(UserViewSet):
         user = self.request.user
         following = self.get_object()
         if request.method == 'DELETE':
-            instance = user.follower.filter(following=following)
+            instance = user.follower.filter(author=following)
             if not instance:
                 raise serializers.ValidationError(
                     {
