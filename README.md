@@ -2,14 +2,6 @@
 
 ![workflow](https://github.com/Marik63/foodgram-project-react/actions/workflows/main.yml/badge.svg)
 
-### Демо рабочего проекта:
-http://84.252.139.70/ или http://maratpraktik2.ddns.net
-
-### реквизиты для входа под суперпользователем
-```
-admin user: marat63@mail.ru
-password: 123456
-```
 
 ## Описание проекта
 # Foodgram - «Продуктовый помощник»
@@ -18,8 +10,8 @@ password: 123456
 
 ## Стек
 
-- Python 3.7.0
-- Django 2.2.19
+- Python 3.8.0
+- Django 3.2.14
 - DRF 3.12.4
 - Nginx
 - Docker-compose
@@ -27,15 +19,15 @@ ____
 
 ### Используемые технологии:
 
-- Django 2.2.19
-- Python 3.7.0
+- Django 3.2.14
+- Python 3.8.0
 - Django REST Framework 3.12.4
 - Simple-JWT 4.8.0
 - PostgreSQL 13.0-alpine
 - Nginx 1.21.3-alpine
 - Gunicorn 20.0.4
 - Docker 20.10.17, build 100c701
-- Docker-compose 3.8
+- Docker-compose 3.3
 
 
 ## Запуск проекта с помощью Docker
